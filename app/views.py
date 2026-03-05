@@ -1,6 +1,6 @@
 import os
 from app import app, db, login_manager
-from flask import render_template, request, redirect, url_for, flash, session, abort
+from flask import render_template, request, redirect, url_for, flash, session, abort, send_from_directory
 from flask_login import login_user, logout_user, current_user, login_required
 from werkzeug.utils import secure_filename
 from werkzeug.security import check_password_hash
@@ -39,7 +39,8 @@ def upload():
         f.save(os.path.join(upload_path, filename))
 
         flash('File Saved', 'success')
-        return redirect(url_for('home')) # Update this to redirect the user to a route that displays all uploaded image files
+        # after saving redirect to the page that lists files
+        return redirect(url_for('files'))
 
     return render_template('upload.html', form=form)
 
@@ -73,6 +74,20 @@ def login():
 
 # user_loader callback. This callback is used to reload the user object from
 # the user ID stored in the session
+
+
+def get_uploaded_images():
+    upload_folder = app.config.get('UPLOAD_FOLDER', '')
+    rootdir = os.getcwd()
+    directory = os.path.join(rootdir, upload_folder)
+    images = []
+    if os.path.isdir(directory):
+        for subdir, dirs, files in os.walk(directory):
+            for file in files:
+                images.append(file)
+    return images
+
+
 @login_manager.user_loader
 def load_user(id):
     return db.session.execute(db.select(UserProfile).filter_by(id=id)).scalar()
@@ -90,6 +105,14 @@ def flash_errors(form):
                 error
 ), 'danger')
 
+
+@app.route('/uploads/<filename>')
+def get_image(filename):
+    """Return a specific image from the uploads folder."""
+    directory = os.path.join(os.getcwd(), app.config.get('UPLOAD_FOLDER', ''))
+    return send_from_directory(directory, filename)
+
+
 @app.route('/<file_name>.txt')
 def send_text_file(file_name):
     """Send your static text file."""
@@ -106,6 +129,14 @@ def add_header(response):
     response.headers['X-UA-Compatible'] = 'IE=Edge,chrome=1'
     response.headers['Cache-Control'] = 'public, max-age=0'
     return response
+
+
+
+@app.route('/files')
+@login_required
+def files():
+    images = get_uploaded_images()
+    return render_template('files.html', images=images)
 
 
 @app.errorhandler(404)
