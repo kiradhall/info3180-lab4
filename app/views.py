@@ -75,6 +75,12 @@ def login():
 # user_loader callback. This callback is used to reload the user object from
 # the user ID stored in the session
 
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    flash('You have successfully logged out.', 'success')
+    return redirect(url_for('home'))
 
 def get_uploaded_images():
     upload_folder = app.config.get('UPLOAD_FOLDER', '')
